@@ -1,8 +1,20 @@
-from sentence_transformers import SentenceTransformer, util
 from services.resume_parser import SKILLS_LIST
 import re
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# Lazy load model to avoid startup issues
+model = None
+
+def get_model():
+    global model
+    if model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            print(f"Warning: Could not load SentenceTransformer model: {e}")
+            print("Scoring engine will use keyword matching only")
+            return None
+    return model
 
 def clean_text(text):
     text = text.lower()
@@ -18,10 +30,18 @@ def calculate_suitability_score(resume_text, job_description_text):
     cleaned_jd = clean_text(job_description_text)
     
     # --- 1. AI Score (SBERT) ---
-    embeddings1 = model.encode(resume_text, convert_to_tensor=True)
-    embeddings2 = model.encode(job_description_text, convert_to_tensor=True)
-    cosine_scores = util.cos_sim(embeddings1, embeddings2)
-    ai_score = float(cosine_scores[0][0]) * 100
+    model = get_model()
+    ai_score = 0
+    if model is not None:
+        try:
+            from sentence_transformers import util
+            embeddings1 = model.encode(resume_text, convert_to_tensor=True)
+            embeddings2 = model.encode(job_description_text, convert_to_tensor=True)
+            cosine_scores = util.cos_sim(embeddings1, embeddings2)
+            ai_score = float(cosine_scores[0][0]) * 100
+        except Exception as e:
+            print(f"Error encoding with model: {e}")
+            ai_score = 0
     
     # --- 2. Keyword Score (Hard Skills) ---
     try:

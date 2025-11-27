@@ -1,5 +1,5 @@
 from flask_bcrypt import Bcrypt
-from flask_pymongo import PyMongo
+from flask_sqlalchemy import SQLAlchemy
 
 bcrypt = Bcrypt()
-mongo = PyMongo()
+db = SQLAlchemy()

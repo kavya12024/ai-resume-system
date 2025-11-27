@@ -15,18 +15,22 @@ login_parser.add_argument('password', type=str, required=True, help="Password ca
 class UserRegister(Resource):
     def post(self):
         data = register_parser.parse_args()
-        if User.find_by_email(data['email']):
+        
+        # Check if user already exists
+        existing_user = User.find_by_email(data['email'])
+        if existing_user:
             return {'message': 'User with this email already exists'}, 400
         
-        user = User(
-            email=data['email'],
-            password=data['password'],
-            name=data['name'],
-            role=data['role']
-        )
         try:
+            # Create new user
+            user = User(
+                email=data['email'],
+                password=data['password'],
+                name=data['name'],
+                role=data['role']
+            )
             user.save()
-            return {'message': 'User created successfully'}, 201
+            return {'message': 'User created successfully', 'user': user.to_dict()}, 201
         except Exception as e:
             return {'message': f'Something went wrong: {str(e)}'}, 500
 
@@ -35,31 +39,20 @@ class UserLogin(Resource):
         data = login_parser.parse_args()
         user = User.find_by_email(data['email'])
 
-        if user and User.check_password(user['password'], data['password']):
-            
-            # 1. Define the user's string identity (the JWT 'sub' claim)
-            identity_string = user['email']
-            
-            # 2. Define additional claims (user role and ID) as a dictionary
-            claims_data = {
-                'role': user['role'],
-                'user_id': str(user['_id']) # Ensure _id is converted to a string
-            }
-            
-            # 3. Create the token using the string identity and claims
+        if user and User.check_password(user.password, data['password']):
+            # Create JWT token
             access_token = create_access_token(
-                identity=identity_string,
-                additional_claims=claims_data
+                identity=user.email,
+                additional_claims={
+                    'role': user.role,
+                    'user_id': user.id
+                }
             )
             
             return {
                 'message': 'Logged in successfully',
                 'access_token': access_token,
-                'user': {
-                    'name': user['name'],
-                    'email': user['email'],
-                    'role': user['role']
-                }
+                'user': user.to_dict()
             }, 200
         
         return {'message': 'Invalid credentials'}, 401

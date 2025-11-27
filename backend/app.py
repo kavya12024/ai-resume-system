@@ -3,13 +3,13 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import Config
-from database import init_db
-from models.user_model import bcrypt  # Import bcrypt from user_model
+from database import init_db, db
+from models.user_model import bcrypt
 
 # Import routes
 from routes.user_routes import init_user_routes
 from routes.resume_routes import init_resume_routes
-# We are ignoring interview_routes for now
+from routes.interview_routes import init_interview_routes
 
 jwt = JWTManager()
 
@@ -19,7 +19,7 @@ def create_app():
 
     # Initialize extensions
     init_db(app)
-    bcrypt.init_app(app) # Initialize bcrypt here
+    bcrypt.init_app(app)
     jwt.init_app(app)
     CORS(app, 
         resources={r"/api/*": {"origins": "http://localhost:5173"}},
@@ -42,7 +42,7 @@ def create_app():
     # Register API routes
     init_user_routes(api)
     init_resume_routes(api)
-    # init_interview_routes(api) # Leave this commented out
+    init_interview_routes(api)
 
     @app.route('/')
     def index():
@@ -52,4 +52,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5001)
+    app.run(debug=False, port=5001)

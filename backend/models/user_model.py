@@ -1,38 +1,45 @@
-from database import mongo
-# We will import bcrypt from app.py
-from bson.objectid import ObjectId
+from database import db
 import flask_bcrypt
 
 bcrypt = flask_bcrypt.Bcrypt()
 
-class User:
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), default='candidate')  # 'candidate' or 'recruiter'
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    
     def __init__(self, email, password, name, role='candidate'):
         self.email = email
-        self.password = password
+        self.password = bcrypt.generate_password_hash(password).decode('utf-8')
         self.name = name
-        self.role = role  # 'candidate' or 'recruiter'
+        self.role = role
 
     def save(self):
-        hashed_password = bcrypt.generate_password_hash(self.password).decode('utf-8')
-        user_data = {
-            'email': self.email,
-            'password': hashed_password,
-            'name': self.name,
-            'role': self.role
-        }
-        return mongo.db.users.insert_one(user_data)
+        db.session.add(self)
+        db.session.commit()
+        return self
 
     @staticmethod
     def find_by_email(email):
-        return mongo.db.users.find_one({'email': email})
+        return User.query.filter_by(email=email).first()
 
     @staticmethod
     def find_by_id(user_id):
-        try:
-            return mongo.db.users.find_one({'_id': ObjectId(user_id)})
-        except Exception:
-            return None
+        return User.query.filter_by(id=user_id).first()
 
     @staticmethod
     def check_password(hashed_password, password):
         return bcrypt.check_password_hash(hashed_password, password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'role': self.role
+        }

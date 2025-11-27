@@ -35,13 +35,23 @@ const Dashboard = () => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Welcome, {user.name}</h1>
-        <button
-          onClick={handleLogout}
-          className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
-        >
-          <FiLogOut className="mr-2" />
-          Logout
-        </button>
+        <div className="flex space-x-3">
+          {user.role === 'candidate' && (
+            <button
+              onClick={() => navigate('/interview')}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition"
+            >
+              Start Mock Interview
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-600 transition"
+          >
+            <FiLogOut className="mr-2" />
+            Logout
+          </button>
+        </div>
       </header>
       
       {user.role === 'recruiter' ? (
@@ -63,8 +73,13 @@ const Dashboard = () => {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-xl">
             <h2 className="text-2xl font-semibold mb-4 text-gray-700">Mock Interview</h2>
-            <p className="text-gray-600">The mock interview module is under construction.</p>
-            {/* MockInterviewStart component will go here */}
+            <p className="text-gray-600 mb-4">Practice your interview skills with AI-powered mock interviews. Get questions based on your skills and receive instant feedback.</p>
+            <button
+              onClick={() => navigate('/interview')}
+              className="w-full px-4 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition"
+            >
+              Start Mock Interview →
+            </button>
           </div>
         </div>
       )}

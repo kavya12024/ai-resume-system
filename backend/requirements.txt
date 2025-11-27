@@ -1,6 +1,6 @@
 flask
 flask-restful
-flask-pymongo
+flask-sqlalchemy
 flask-jwt-extended
 flask-bcrypt
 flask-cors
@@ -9,3 +9,4 @@ spacy
 scikit-learn
 pdfplumber
 docx2txt
+requests

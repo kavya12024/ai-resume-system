@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
-// We are ignoring InterviewPage for now
+import InterviewPage from './pages/InterviewPage';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -23,6 +23,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/interview" 
+            element={
+              <ProtectedRoute>
+                <InterviewPage />
               </ProtectedRoute>
             } 
           />

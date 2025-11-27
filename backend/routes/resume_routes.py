@@ -1,12 +1,13 @@
 from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from flask import request
-from database import mongo
+from database import db
 from utils.pdf_extractor import extract_text_from_file
 from utils.cheater_detector import extract_text_from_file
 from services.resume_parser import parse_resume
 from services.scoring_engine import calculate_suitability_score
 from models.user_model import User
+from models.resume_model import Resume
 from io import StringIO
 import csv
 import os
@@ -50,12 +51,12 @@ class ResumeUpload(Resource):
             return {'message': 'User not found'}, 404
         
         filename = re.sub(r'[^a-zA-Z0-9._-]', '_', resume_file.filename)
-        file_path = os.path.join(UPLOAD_FOLDER, f"{user['_id']}_{filename}")
+        file_path = os.path.join(UPLOAD_FOLDER, f"{user.id}_{filename}")
         
         try:
             resume_file.save(file_path)
             
-            # --- MODIFIED LINE: Unpack both values ---
+            # Extract text from file
             text, is_suspicious = extract_text_from_file(file_path)
             
             if text is None:
@@ -63,17 +64,25 @@ class ResumeUpload(Resource):
                 
             parsed_data = parse_resume(text)
             
-            mongo.db.resumes.update_one(
-                {'user_id': user['_id']},
-                {'$set': {
-                    'user_id': user['_id'],
-                    'filename': filename,
-                    'text': parsed_data['full_text'],
-                    'parsed': parsed_data,
-                    'is_suspicious': is_suspicious  # --- NEW: Save the flag to DB ---
-                }},
-                upsert=True
-            )
+            # Update or create resume in database
+            existing_resume = Resume.query.filter_by(user_id=user.id).first()
+            if existing_resume:
+                existing_resume.filename = filename
+                existing_resume.text = parsed_data.get('full_text', text)
+                existing_resume.parsed_data = parsed_data
+                existing_resume.is_suspicious = is_suspicious
+            else:
+                new_resume = Resume(
+                    user_id=user.id,
+                    filename=filename,
+                    text=parsed_data.get('full_text', text),
+                    parsed_data=parsed_data,
+                    is_suspicious=is_suspicious
+                )
+                db.session.add(new_resume)
+            
+            db.session.commit()
+            
         except Exception as e:
             return {'message': f"An error occurred: {str(e)}"}, 500
         finally:
@@ -84,20 +93,18 @@ class ResumeUpload(Resource):
 
 class ResumeAnalyze(Resource):
     def post(self):
-        # Authentication removed for testing
-        
         data = analyze_parser.parse_args()
         job_description = data['job_description']
         
         candidates = []
         
-        # Iterate through all resumes in the database
-        for resume in mongo.db.resumes.find():
-            resume_text = resume.get('text', '')
-            parsed_data = resume.get('parsed', {})
-            
-            # --- NEW: Get the flag from DB (Default to False) ---
-            is_suspicious = resume.get('is_suspicious', False)
+        # Get all resumes from the database
+        resumes = Resume.query.all()
+        
+        for resume in resumes:
+            resume_text = resume.text
+            parsed_data = resume.parsed_data or {}
+            is_suspicious = resume.is_suspicious
             
             score, matched, missing = calculate_suitability_score(resume_text, job_description)
             
@@ -108,7 +115,7 @@ class ResumeAnalyze(Resource):
                 'score': score,
                 'matched_skills': matched,
                 'missing_skills': missing,
-                'is_suspicious': is_suspicious # --- NEW: Send flag to frontend ---
+                'is_suspicious': is_suspicious
             })
             
         # Sort candidates by score (highest to lowest)
