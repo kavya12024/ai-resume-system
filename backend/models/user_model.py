@@ -1,10 +1,38 @@
-from database import db
+from database import mongo
+# We will import bcrypt from app.py
+from bson.objectid import ObjectId
+import flask_bcrypt
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+bcrypt = flask_bcrypt.Bcrypt()
 
-    def __repr__(self):
-        return f'<User {self.username}>'
+class User:
+    def __init__(self, email, password, name, role='candidate'):
+        self.email = email
+        self.password = password
+        self.name = name
+        self.role = role  # 'candidate' or 'recruiter'
+
+    def save(self):
+        hashed_password = bcrypt.generate_password_hash(self.password).decode('utf-8')
+        user_data = {
+            'email': self.email,
+            'password': hashed_password,
+            'name': self.name,
+            'role': self.role
+        }
+        return mongo.db.users.insert_one(user_data)
+
+    @staticmethod
+    def find_by_email(email):
+        return mongo.db.users.find_one({'email': email})
+
+    @staticmethod
+    def find_by_id(user_id):
+        try:
+            return mongo.db.users.find_one({'_id': ObjectId(user_id)})
+        except Exception:
+            return None
+
+    @staticmethod
+    def check_password(hashed_password, password):
+        return bcrypt.check_password_hash(hashed_password, password)

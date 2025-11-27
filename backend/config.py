@@ -4,7 +4,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'default_secret_key')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///ai_resume.db')
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+    MONGO_URI = os.getenv("MONGO_URI")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")

@@ -1,23 +1,55 @@
 from flask import Flask
+from flask_restful import Api
+from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import Config
-from database import db
-from routes.user_routes import user_bp
-from routes.resume_routes import resume_bp
-from routes.interview_routes import interview_bp
+from database import init_db
+from models.user_model import bcrypt  # Import bcrypt from user_model
 
-app = Flask(__name__)
-app.config.from_object(Config)
+# Import routes
+from routes.user_routes import init_user_routes
+from routes.resume_routes import init_resume_routes
+# We are ignoring interview_routes for now
 
-CORS(app)
-db.init_app(app)
+jwt = JWTManager()
 
-app.register_blueprint(user_bp, url_prefix='/api/user')
-app.register_blueprint(resume_bp, url_prefix='/api/resume')
-app.register_blueprint(interview_bp, url_prefix='/api/interview')
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
 
-with app.app_context():
-    db.create_all()
+    # Initialize extensions
+    init_db(app)
+    bcrypt.init_app(app) # Initialize bcrypt here
+    jwt.init_app(app)
+    CORS(app, 
+        resources={r"/api/*": {"origins": "http://localhost:5173"}},
+        supports_credentials=True # Crucial for handling cookies/Authorization headers
+    )
+    app.config["JWT_DECODE_STRATEGIES"] = [
+        {
+            "type": "header",
+            "extractors": [
+                {"type": "Authorization", "location": "headers"}
+            ]
+        }
+    ]
+    app.config["JWT_TOKEN_LOCATION"] = ["headers"]
+    app.config["JWT_HEADER_NAME"] = "Authorization"
+    app.config["JWT_HEADER_TYPE"] = "Bearer"
+    app.config['JWT_SUPPRESS_BODY_PARSING'] = True
+    api = Api(app, prefix="/api")
+
+    # Register API routes
+    init_user_routes(api)
+    init_resume_routes(api)
+    # init_interview_routes(api) # Leave this commented out
+
+    @app.route('/')
+    def index():
+        return "Welcome to the AI Resume Shortlister API (Resume Module)"
+
+    return app
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app = create_app()
+    app.run(debug=True, port=5000)
